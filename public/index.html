@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Relevamiento Sanitario - Zona de Riesgo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; max-width: 650px; margin: 0 auto; padding: 15px; background: #f0f2f5; color: #1c1e21; }
+    .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    h2 { margin-top: 0; color: #004a99; border-bottom: 2px solid #e4e6eb; padding-bottom: 10px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 500px) { .grid-2 { grid-template-columns: 1fr; } }
+    label { display: block; margin-top: 14px; font-weight: 600; font-size: 0.9rem; }
+    input[type="text"], input[type="number"], input[type="tel"], textarea, select {
+      width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccd0d5; border-radius: 6px; box-sizing: border-box; font-size: 1rem;
+    }
+    .alerta-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 12px; border-radius: 6px; margin-top: 14px; display: flex; align-items: center; gap: 10px; }
+    .alerta-box input { width: 20px; height: 20px; margin: 0; }
+    #map { height: 260px; margin-top: 10px; border-radius: 6px; border: 1px solid #ccc; }
+    .btn-gps { background: #198754; color: white; border: none; padding: 10px; border-radius: 6px; width: 100%; font-weight: bold; margin-top: 8px; cursor: pointer; }
+    .btn-submit { width: 100%; padding: 14px; background: #0056b3; color: white; border: none; border-radius: 6px; font-size: 1.05rem; font-weight: bold; margin-top: 22px; cursor: pointer; }
+    .btn-submit:hover { background: #004494; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Ficha de Relevamiento - Riesgo Hídrico</h2>
+    <form id="formRiesgo">
+      <div class="grid-2">
+        <div>
+          <label>Apellido *</label>
+          <input type="text" id="apellido" required placeholder="Ej: Pérez">
+        </div>
+        <div>
+          <label>Nombre *</label>
+          <input type="text" id="nombre" required placeholder="Ej: Juan Carlos">
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label>DNI (sin puntos) *</label>
+          <input type="number" id="dni" required placeholder="Ej: 25123456">
+        </div>
+        <div>
+          <label>Teléfono / WhatsApp *</label>
+          <input type="tel" id="telefono" required placeholder="Ej: 5493425123456">
+        </div>
+      </div>
+
+      <label>Dirección o Referencia de Ubicación *</label>
+      <input type="text" id="direccion_referencia" required placeholder="Ej: Pasaje s/n a 50m del terraplén, casa de ladrillo visto">
+
+      <label>Enfermedad o Discapacidad que posee</label>
+      <textarea id="enfermedad_discapacidad" rows="2" placeholder="Ej: Diabetes insulinodependiente, EPOC, discapacidad motriz..."></textarea>
+
+      <label>Médico de cabecera o Centro de Salud de referencia</label>
+      <input type="text" id="medico_centro_salud" placeholder="Ej: CAPS Colastiné / Dr. Gómez">
+
+      <label>Medicación que toma habitualmente</label>
+      <textarea id="medicacion" rows="2" placeholder="Ej: Insulina NPH, Enalapril 10mg, Salbutamol..."></textarea>
+
+      <div class="alerta-box">
+        <input type="checkbox" id="es_electrodependiente">
+        <label for="es_electrodependiente" style="margin:0; cursor:pointer; color:#856404;">
+          ⚡ Paciente Electrodependiente (Requiere suministro eléctrico continuo)
+        </label>
+      </div>
+
+      <label>Otras Observaciones (prótesis, retraso madurativo, postrado, etc.)</label>
+      <textarea id="otras_observaciones" rows="2" placeholder="Ej: Usa silla de ruedas, prótesis miembro inferior, vive solo..."></textarea>
+
+      <label>Prioridad de Evacuación / Asistencia</label>
+      <select id="criticidad">
+        <option value="baja">Baja (Autoválido / Sin medicación crítica)</option>
+        <option value="media" selected>Media (Requiere seguimiento o medicación crónica)</option>
+        <option value="alta">ALTA (Electrodependiente / Movilidad reducida / Riesgo vital)</option>
+      </select>
+
+      <label>Geolocalización Exacta (Toca el botón GPS o arrastra el pin en el mapa)</label>
+      <button type="button" class="btn-gps" onclick="obtenerGPS()">📍 Capturar mi ubicación GPS actual</button>
+      <div id="map"></div>
+      <input type="hidden" id="lat" required>
+      <input type="hidden" id="lng" required>
+
+      <button type="submit" class="btn-submit">Guardar Ficha en el Mapa</button>
+    </form>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const defaultLat = -31.6333;
+    const defaultLng = -60.7000;
+
+    const map = L.map('map').setView([defaultLat, defaultLng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+    actualizarCoords(defaultLat, defaultLng);
+
+    marker.on('dragend', () => {
+      const pos = marker.getLatLng();
+      actualizarCoords(pos.lat, pos.lng);
+    });
+
+    map.on('click', (e) => {
+      marker.setLatLng(e.latlng);
+      actualizarCoords(e.latlng.lat, e.latlng.lng);
+    });
+
+    function actualizarCoords(lat, lng) {
+      document.getElementById('lat').value = lat;
+      document.getElementById('lng').value = lng;
+    }
+
+    function obtenerGPS() {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition(pos => {
+          const { latitude, longitude } = pos.coords;
+          map.setView([latitude, longitude], 17);
+          marker.setLatLng([latitude, longitude]);
+          actualizarCoords(latitude, longitude);
+        }, () => alert("No se pudo obtener el GPS. Marca el punto manualmente tocando el mapa."), { enableHighAccuracy: true });
+      }
+    }
+
+    // Si marca electrodependiente, sube automáticamente la criticidad a ALTA
+    document.getElementById('es_electrodependiente').addEventListener('change', (e) => {
+      if (e.target.checked) {
+        document.getElementById('criticidad').value = 'alta';
+      }
+    });
+
+    document.getElementById('formRiesgo').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        apellido: document.getElementById('apellido').value,
+        nombre: document.getElementById('nombre').value,
+        dni: document.getElementById('dni').value,
+        telefono: document.getElementById('telefono').value,
+        direccion_referencia: document.getElementById('direccion_referencia').value,
+        enfermedad_discapacidad: document.getElementById('enfermedad_discapacidad').value,
+        medico_centro_salud: document.getElementById('medico_centro_salud').value,
+        medicacion: document.getElementById('medicacion').value,
+        otras_observaciones: document.getElementById('otras_observaciones').value,
+        es_electrodependiente: document.getElementById('es_electrodependiente').checked,
+        criticidad: document.getElementById('criticidad').value,
+        lat: parseFloat(document.getElementById('lat').value),
+        lng: parseFloat(document.getElementById('lng').value)
+      };
+
+      const res = await fetch('/api/personas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        alert('✅ Ficha guardada correctamente.');
+        document.getElementById('formRiesgo').reset();
+      } else {
+        const err = await res.json();
+        alert('❌ Error: ' + err.error);
+      }
+    });
+  </script>
+</body>
+</html>

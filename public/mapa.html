@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Centro de Operaciones - Mapa Sanitario</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; display: flex; height: 100vh; }
+    #sidebar { width: 400px; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+    .header-panel { padding: 15px; background: #004a99; color: white; }
+    .header-panel h3 { margin: 0 0 10px 0; }
+    .controles { padding: 10px 15px; background: #f8f9fa; border-bottom: 1px solid #ddd; }
+    .controles input, .controles select { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+    #lista { flex: 1; overflow-y: auto; padding: 12px; }
+    #map { flex: 1; height: 100%; }
+    .persona-card { border: 1px solid #e0e0e0; border-left: 6px solid #ccc; padding: 12px; margin-bottom: 10px; border-radius: 6px; background: #fff; cursor: pointer; transition: 0.15s; }
+    .persona-card:hover { background: #f4f8ff; }
+    .alta { border-left-color: #dc3545; }
+    .media { border-left-color: #ffc107; }
+    .baja { border-left-color: #17a2b8; }
+    .evacuado { border-left-color: #28a745; opacity: 0.65; }
+    .badge-electro { background: #dc3545; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .dato-item { font-size: 0.85rem; margin-top: 4px; color: #333; }
+    .acciones { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn-wa { background: #25D366; color: white; text-decoration: none; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+    .btn-estado { background: #495057; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    .btn-evacuado { background: #198754; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="header-panel">
+      <h3>Mapa de Riesgo (<span id="contador">0</span>)</h3>
+      <small>Panel de seguimiento sanitario y evacuación</small>
+    </div>
+    <div class="controles">
+      <input type="text" id="buscador" placeholder="Buscar por apellido, DNI, medicación o CAPS..." onkeyup="renderizarDatos()">
+      <select id="filtro" onchange="renderizarDatos()">
+        <option value="todos">Todos los registros</option>
+        <option value="electro">⚡ Solo Electrodependientes</option>
+        <option value="alta">🔴 Prioridad ALTA (Sin evacuar)</option>
+        <option value="pendientes">⏳ Todos los pendientes de evacuar</option>
+        <option value="evacuados">✅ Ya Evacuados</option>
+      </select>
+    </div>
+    <div id="lista"></div>
+  </div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([-31.6333, -60.7000], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let personasData = [];
+    let markersLayer = L.layerGroup().addTo(map);
+
+    async function cargarDatos() {
+      const res = await fetch('/api/personas');
+      personasData = await res.json();
+      renderizarDatos();
+    }
+
+    function obtenerColor(p) {
+      if (p.estado === 'evacuado') return '#28a745';
+      if (p.es_electrodependiente || p.criticidad === 'alta') return '#dc3545';
+      if (p.criticidad === 'media') return '#ffc107';
+      return '#17a2b8';
+    }
+
+    function renderizarDatos() {
+      const filtro = document.getElementById('filtro').value;
+      const texto = document.getElementById('buscador').value.toLowerCase();
+      const lista = document.getElementById('lista');
+      lista.innerHTML = '';
+      markersLayer.clearLayers();
+
+      const filtrados = personasData.filter(p => {
+        const coincideTexto = 
+          `${p.apellido} ${p.nombre}`.toLowerCase().includes(texto) ||
+          (p.dni && p.dni.includes(texto)) ||
+          (p.medicacion && p.medicacion.toLowerCase().includes(texto)) ||
+          (p.medico_centro_salud && p.medico_centro_salud.toLowerCase().includes(texto));
+
+        if (!coincideTexto) return false;
+        if (filtro === 'electro') return p.es_electrodependiente;
+        if (filtro === 'alta') return (p.criticidad === 'alta' || p.es_electrodependiente) && p.estado !== 'evacuado';
+        if (filtro === 'pendientes') return p.estado !== 'evacuado';
+        if (filtro === 'evacuados') return p.estado === 'evacuado';
+        return true;
+      });
+
+      document.getElementById('contador').innerText = filtrados.length;
+
+      filtrados.forEach(p => {
+        const msg = encodeURIComponent(
+          `Hola ${p.nombre} ${p.apellido}, nos comunicamos del Equipo de Salud y Emergencias por alerta hídrica. Tenemos registrado su domicilio en ${p.direccion_referencia}. ¿Cómo se encuentran y necesitan asistencia o traslado?`
+        );
+        const linkWa = `https://wa.me/${p.telefono}?text=${msg}`;
+
+        // Pin en el mapa
+        const marker = L.circleMarker([p.lat, p.lng], {
+          radius: p.es_electrodependiente ? 11 : 9,
+          fillColor: obtenerColor(p),
+          color: '#000',
+          weight: p.es_electrodependiente ? 2.5 : 1,
+          fillOpacity: 0.9
+        }).bindPopup(`
+          <div style="min-width:220px;">
+            <strong style="font-size:1.05rem;">${p.apellido}, ${p.nombre}</strong><br>
+            ${p.es_electrodependiente ? '<span class="badge-electro">⚡ ELECTRODEPENDIENTE</span><br>' : ''}
+            <b>DNI:</b> ${p.dni} | <b>Tel:</b> ${p.telefono}<br>
+            <b>Ref:</b> ${p.direccion_referencia}<br>
+            <hr style="margin:6px 0;">
+            <b>Patología/Discapacidad:</b> ${p.enfermedad_discapacidad || '-'}<br>
+            <b>Medicación:</b> ${p.medicacion || '-'}<br>
+            <b>Médico/CAPS:</b> ${p.medico_centro_salud || '-'}<br>
+            <b>Observaciones:</b> ${p.otras_observaciones || '-'}<br>
+            <div style="margin-top:8px;">
+              <a href="${linkWa}" target="_blank" class="btn-wa">📲 Contactar por WhatsApp</a>
+            </div>
+          </div>
+        `);
+        markersLayer.addLayer(marker);
+
+        // Tarjeta lateral
+        const card = document.createElement('div');
+        card.className = `persona-card ${p.estado === 'evacuado' ? 'evacuado' : p.criticidad}`;
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>${p.apellido}, ${p.nombre}</strong>
+            ${p.es_electrodependiente ? '<span class="badge-electro">⚡ ELECTRO</span>' : ''}
+          </div>
+          <div class="dato-item">📍 <b>Ref:</b> ${p.direccion_referencia}</div>
+          <div class="dato-item">🩺 <b>Dx:</b> ${p.enfermedad_discapacidad || 'Sin especificar'}</div>
+          <div class="dato-item">💊 <b>Med:</b> ${p.medicacion || 'Ninguna'}</div>
+          <div class="dato-item">🏥 <b>Ref. Salud:</b> ${p.medico_centro_salud || '-'}</div>
+          ${p.otras_observaciones ? `<div class="dato-item" style="color:#b02a37;">⚠️ <b>Obs:</b> ${p.otras_observaciones}</div>` : ''}
+          <div class="acciones">
+            <a href="${linkWa}" target="_blank" class="btn-wa">WhatsApp</a>
+            ${p.estado !== 'contactado' && p.estado !== 'evacuado' ? `<button class="btn-estado" onclick="cambiarEstado('${p.id}', 'contactado')">📞 Contactado</button>` : ''}
+            ${p.estado !== 'evacuado' ? `<button class="btn-estado btn-evacuado" onclick="cambiarEstado('${p.id}', 'evacuado')">✓ Evacuado</button>` : '<span style="color:#198754; font-weight:bold; font-size:0.85rem;">✅ Evacuado</span>'}
+          </div>
+        `;
+        card.onclick = (e) => {
+          if (e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
+            map.setView([p.lat, p.lng], 17);
+            marker.openPopup();
+          }
+        };
+        lista.appendChild(card);
+      });
+    }
+
+    async function cambiarEstado(id, nuevoEstado) {
+      await fetch(`/api/personas/${id}/estado`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: nuevoEstado })
+      });
+      cargarDatos();
+    }
+
+    cargarDatos();
+  </script>
+</body>
+</html>
