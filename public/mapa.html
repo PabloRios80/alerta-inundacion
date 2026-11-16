@@ -136,6 +136,7 @@
           <div class="dato-item">💊 <b>Med:</b> ${p.medicacion || 'Ninguna'}</div>
           <div class="dato-item">🏥 <b>Ref. Salud:</b> ${p.medico_centro_salud || '-'}</div>
           ${p.otras_observaciones ? `<div class="dato-item" style="color:#b02a37;">⚠️ <b>Obs:</b> ${p.otras_observaciones}</div>` : ''}
+          <div class="dato-item" style="color:#6c757d; font-size:0.8rem;">📝 <b>Cargado por:</b> ${p.operadora || 'Sin registro'}</div>
           <div class="acciones">
             <a href="${linkWa}" target="_blank" class="btn-wa">WhatsApp</a>
             ${p.estado !== 'contactado' && p.estado !== 'evacuado' ? `<button class="btn-estado" onclick="cambiarEstado('${p.id}', 'contactado')">📞 Contactado</button>` : ''}

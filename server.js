@@ -13,6 +13,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 // Registrar o actualizar persona por DNI
 app.post('/api/personas', async (req, res) => {
   const {
+    operadora,
     apellido,
     nombre,
     dni,
