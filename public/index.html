@@ -3,167 +3,220 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Relevamiento Sanitario - Zona de Riesgo</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <title>Salud Colastiné Norte - Emergencia Hídrica</title>
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; max-width: 650px; margin: 0 auto; padding: 15px; background: #f0f2f5; color: #1c1e21; }
-    .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    h2 { margin-top: 0; color: #004a99; border-bottom: 2px solid #e4e6eb; padding-bottom: 10px; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 500px) { .grid-2 { grid-template-columns: 1fr; } }
-    label { display: block; margin-top: 14px; font-weight: 600; font-size: 0.9rem; }
-    input[type="text"], input[type="number"], input[type="tel"], textarea, select {
-      width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccd0d5; border-radius: 6px; box-sizing: border-box; font-size: 1rem;
+    :root {
+      --azul-banner: #0d47a1;
+      --azul-oscuro: #0a3575;
+      --bg: #eef2f7;
+      --text: #212529;
     }
-    .alerta-box { background: #fff3cd; border: 1px solid #ffeeba; padding: 12px; border-radius: 6px; margin-top: 14px; display: flex; align-items: center; gap: 10px; }
-    .alerta-box input { width: 20px; height: 20px; margin: 0; }
-    #map { height: 260px; margin-top: 10px; border-radius: 6px; border: 1px solid #ccc; }
-    .btn-gps { background: #198754; color: white; border: none; padding: 10px; border-radius: 6px; width: 100%; font-weight: bold; margin-top: 8px; cursor: pointer; }
-    .btn-submit { width: 100%; padding: 14px; background: #0056b3; color: white; border: none; border-radius: 6px; font-size: 1.05rem; font-weight: bold; margin-top: 22px; cursor: pointer; }
-    .btn-submit:hover { background: #004494; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, #072a58, var(--azul-banner));
+      color: white;
+      padding: 35px 20px;
+      text-align: center;
+      border-bottom: 5px solid #ffc107;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+    
+    /* Estilo de banner idéntico al flyer */
+    .flyer-badge {
+      display: inline-block;
+      background: var(--azul-banner);
+      color: white;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 10px 22px;
+      border-radius: 8px;
+      border: 2px solid white;
+      font-size: 1.1rem;
+      letter-spacing: 0.5px;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+      margin-bottom: 12px;
+    }
+
+    header h1 {
+      margin: 10px 0 5px 0;
+      font-size: 2.1rem;
+      font-weight: 900;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    }
+    header p {
+      margin: 0;
+      font-size: 1.05rem;
+      opacity: 0.95;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 30px auto;
+      padding: 0 15px;
+    }
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      margin-bottom: 20px;
+      border-top: 4px solid var(--azul-banner);
+    }
+    .intro-text {
+      font-size: 1.15rem;
+      color: #1a252f;
+      font-weight: 600;
+      margin-bottom: 25px;
+      background: #f8f9fa;
+      border-left: 5px solid var(--azul-banner);
+      padding: 15px;
+      border-radius: 0 8px 8px 0;
+    }
+    .btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 25px;
+    }
+    .btn {
+      display: block;
+      text-align: center;
+      padding: 15px 20px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 1.1rem;
+      transition: 0.2s ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+    }
+    .btn-primary {
+      background: #198754; /* Verde operativo fuerte */
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #157347;
+    }
+    .btn-secondary {
+      background: var(--azul-banner);
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: var(--azul-oscuro);
+    }
+    
+    /* Acordeón */
+    .accordion {
+      background: #fff8dc;
+      color: #5c4033;
+      cursor: pointer;
+      padding: 16px 20px;
+      width: 100%;
+      border: 1px solid #faebcc;
+      text-align: left;
+      font-size: 1.05rem;
+      font-weight: bold;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: 0.3s;
+    }
+    .accordion:hover {
+      background: #fff3cd;
+    }
+    .accordion::after {
+      content: '▼';
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+    }
+    .accordion.active::after {
+      transform: rotate(180deg);
+    }
+    .panel {
+      padding: 0 20px;
+      background: white;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+      border-radius: 0 0 8px 8px;
+      font-size: 0.95rem;
+      color: #333;
+    }
+    .panel p {
+      padding: 15px 0 5px 0;
+      margin: 0;
+    }
+    .panel ul {
+      padding-bottom: 15px;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 0.85rem;
+      color: #666;
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h2>Ficha de Relevamiento - Riesgo Hídrico</h2>
-    <form id="formRiesgo">
-      <div class="grid-2">
-        <div>
-          <label>Apellido *</label>
-          <input type="text" id="apellido" required placeholder="Ej: Pérez">
-        </div>
-        <div>
-          <label>Nombre *</label>
-          <input type="text" id="nombre" required placeholder="Ej: Juan Carlos">
-        </div>
+
+  <header>
+    <div class="flyer-badge">Asamblea Vecinal / Emergencia Hídrica</div>
+    <h1>Colastiné Norte</h1>
+    <p>Red Comunitaria de Prevención y Asistencia Sanitaria</p>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <div class="intro-text">
+        Esta es una herramienta para compartir entre vecinos de Colastiné Norte ante la emergencia hídrica actual para poder estar en conocimiento de los vecinos con más riesgo de salud.
       </div>
 
-      <div class="grid-2">
-        <div>
-          <label>DNI (sin puntos) *</label>
-          <input type="number" id="dni" required placeholder="Ej: 25123456">
-        </div>
-        <div>
-          <label>Teléfono / WhatsApp *</label>
-          <input type="tel" id="telefono" required placeholder="Ej: 5493425123456">
-        </div>
+      <div class="btn-group">
+        <a href="formulario.html" class="btn btn-primary">📝 Ingresar al Formulario de Relevamiento</a>
+        <a href="mapa.html" class="btn btn-secondary">🗺️ Ver Mapa Operativo y Vecinos en Riesgo</a>
       </div>
 
-      <label>Dirección o Referencia de Ubicación *</label>
-      <input type="text" id="direccion_referencia" required placeholder="Ej: Pasaje s/n a 50m del terraplén, casa de ladrillo visto">
+      <hr style="border:0; border-top:1px solid #e9ecef; margin: 25px 0;">
 
-      <label>Enfermedad o Discapacidad que posee</label>
-      <textarea id="enfermedad_discapacidad" rows="2" placeholder="Ej: Diabetes insulinodependiente, EPOC, discapacidad motriz..."></textarea>
-
-      <label>Médico de cabecera o Centro de Salud de referencia</label>
-      <input type="text" id="medico_centro_salud" placeholder="Ej: CAPS Colastiné / Dr. Gómez">
-
-      <label>Medicación que toma habitualmente</label>
-      <textarea id="medicacion" rows="2" placeholder="Ej: Insulina NPH, Enalapril 10mg, Salbutamol..."></textarea>
-
-      <div class="alerta-box">
-        <input type="checkbox" id="es_electrodependiente">
-        <label for="es_electrodependiente" style="margin:0; cursor:pointer; color:#856404;">
-          ⚡ Paciente Electrodependiente (Requiere suministro eléctrico continuo)
-        </label>
+      <!-- Botón desplegable -->
+      <button class="accordion">¿A quienes debemos incluir en el formulario?</button>
+      <div class="panel">
+        <p>
+          Se deben incluir a todos los vecinos que viven en zona de crisis hídrica y padecen de alguna condición que necesiten cuidado especial en estos momentos como son:
+        </p>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li>Ancianos que no son totalmente autoválidos.</li>
+          <li>Los que tienen alguna enfermedad crónica que necesiten cuidados y/o medicación permanente (hipertensos, diabéticos, colesterol alto, problemas cardíacos, cáncer, etc.).</li>
+          <li>Cualquier tipo de discapacidad sin importar la edad (ACV, retraso mental, parálisis cerebral, etc.).</li>
+          <li>Cualquier condición que no pueda valerse por sí mismo y necesite el cuidado y ayuda de otras personas y provisión por parte del sistema de salud o de los médicos del sistema.</li>
+        </ul>
       </div>
-
-      <label>Otras Observaciones (prótesis, retraso madurativo, postrado, etc.)</label>
-      <textarea id="otras_observaciones" rows="2" placeholder="Ej: Usa silla de ruedas, prótesis miembro inferior, vive solo..."></textarea>
-
-      <label>Prioridad de Evacuación / Asistencia</label>
-      <select id="criticidad">
-        <option value="baja">Baja (Autoválido / Sin medicación crítica)</option>
-        <option value="media" selected>Media (Requiere seguimiento o medicación crónica)</option>
-        <option value="alta">ALTA (Electrodependiente / Movilidad reducida / Riesgo vital)</option>
-      </select>
-
-      <label>Geolocalización Exacta (Toca el botón GPS o arrastra el pin en el mapa)</label>
-      <button type="button" class="btn-gps" onclick="obtenerGPS()">📍 Capturar mi ubicación GPS actual</button>
-      <div id="map"></div>
-      <input type="hidden" id="lat" required>
-      <input type="hidden" id="lng" required>
-
-      <button type="submit" class="btn-submit">Guardar Ficha en el Mapa</button>
-    </form>
+    </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <footer>
+    Organización Vecinal y Sanitaria — Colastiné Norte
+  </footer>
+
   <script>
-    const defaultLat = -31.6333;
-    const defaultLng = -60.7000;
-
-    const map = L.map('map').setView([defaultLat, defaultLng], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-    let marker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
-    actualizarCoords(defaultLat, defaultLng);
-
-    marker.on('dragend', () => {
-      const pos = marker.getLatLng();
-      actualizarCoords(pos.lat, pos.lng);
-    });
-
-    map.on('click', (e) => {
-      marker.setLatLng(e.latlng);
-      actualizarCoords(e.latlng.lat, e.latlng.lng);
-    });
-
-    function actualizarCoords(lat, lng) {
-      document.getElementById('lat').value = lat;
-      document.getElementById('lng').value = lng;
-    }
-
-    function obtenerGPS() {
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          const { latitude, longitude } = pos.coords;
-          map.setView([latitude, longitude], 17);
-          marker.setLatLng([latitude, longitude]);
-          actualizarCoords(latitude, longitude);
-        }, () => alert("No se pudo obtener el GPS. Marca el punto manualmente tocando el mapa."), { enableHighAccuracy: true });
-      }
-    }
-
-    // Si marca electrodependiente, sube automáticamente la criticidad a ALTA
-    document.getElementById('es_electrodependiente').addEventListener('change', (e) => {
-      if (e.target.checked) {
-        document.getElementById('criticidad').value = 'alta';
-      }
-    });
-
-    document.getElementById('formRiesgo').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const payload = {
-        apellido: document.getElementById('apellido').value,
-        nombre: document.getElementById('nombre').value,
-        dni: document.getElementById('dni').value,
-        telefono: document.getElementById('telefono').value,
-        direccion_referencia: document.getElementById('direccion_referencia').value,
-        enfermedad_discapacidad: document.getElementById('enfermedad_discapacidad').value,
-        medico_centro_salud: document.getElementById('medico_centro_salud').value,
-        medicacion: document.getElementById('medicacion').value,
-        otras_observaciones: document.getElementById('otras_observaciones').value,
-        es_electrodependiente: document.getElementById('es_electrodependiente').checked,
-        criticidad: document.getElementById('criticidad').value,
-        lat: parseFloat(document.getElementById('lat').value),
-        lng: parseFloat(document.getElementById('lng').value)
-      };
-
-      const res = await fetch('/api/personas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (res.ok) {
-        alert('✅ Ficha guardada correctamente.');
-        document.getElementById('formRiesgo').reset();
+    const acc = document.querySelector(".accordion");
+    acc.addEventListener("click", function() {
+      this.classList.toggle("active");
+      const panel = this.nextElementSibling;
+      if (panel.style.maxHeight) {
+        panel.style.maxHeight = null;
       } else {
-        const err = await res.json();
-        alert('❌ Error: ' + err.error);
+        panel.style.maxHeight = panel.scrollHeight + "px";
       }
     });
   </script>
+
 </body>
 </html>
