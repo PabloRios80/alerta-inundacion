@@ -184,6 +184,11 @@
         const res = await fetch('/api/estadisticas');
         const data = await res.json();
 
+        if (!res.ok) {
+          alert('Error del servidor al calcular estadísticas: ' + (data.error || res.status));
+          return;
+        }
+
         document.getElementById('totalPersonas').textContent = data.totalPersonas ?? 0;
         document.getElementById('promedioEdad').textContent =
           data.promedioEdad !== null && data.promedioEdad !== undefined
