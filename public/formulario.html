@@ -117,18 +117,43 @@
     });
 
     function actualizarCoords(lat, lng) {
-      document.getElementById('lat').value = lat;
-      document.getElementById('lng').value = lng;
+      const latNum = Number(lat);
+      const lngNum = Number(lng);
+      document.getElementById('lat').value = Number.isFinite(latNum) ? latNum : defaultLat;
+      document.getElementById('lng').value = Number.isFinite(lngNum) ? lngNum : defaultLng;
     }
-function obtenerGPS() {
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(pos => {
+
+    function obtenerGPS() {
+      if (!("geolocation" in navigator)) {
+        alert("Este dispositivo no soporta GPS. Toca el mapa para marcar la ubicación.");
+        return;
+      }
+
+      const btnGps = document.querySelector('.btn-gps');
+      const textoOriginal = btnGps.textContent;
+      btnGps.disabled = true;
+      btnGps.textContent = "⏳ Buscando ubicación GPS...";
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
           const { latitude, longitude } = pos.coords;
           map.setView([latitude, longitude], 17);
           marker.setLatLng([latitude, longitude]);
           actualizarCoords(latitude, longitude);
-        }, () => alert("No se pudo obtener el GPS. Marca el punto manualmente tocando el mapa."), { enableHighAccuracy: true });
-      }
+          btnGps.disabled = false;
+          btnGps.textContent = textoOriginal;
+        },
+        (err) => {
+          btnGps.disabled = false;
+          btnGps.textContent = textoOriginal;
+          alert("No se pudo obtener el GPS (" + err.message + "). Marca el punto tocando el mapa.");
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 30000
+        }
+      );
     }
 
     document.getElementById('es_electrodependiente').addEventListener('change', (e) => {
@@ -137,18 +162,26 @@ function obtenerGPS() {
       }
     });
 
-    // Recupera el nombre guardado de la operadora al abrir la página
     document.addEventListener('DOMContentLoaded', () => {
       const opGuardada = localStorage.getItem('nombre_operadora');
       if (opGuardada) document.getElementById('operadora').value = opGuardada;
     });
 
-    // Envío del formulario
     document.getElementById('formRiesgo').addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      const btnSubmit = document.querySelector('.btn-submit');
+      const textoBtn = btnSubmit.textContent;
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = "⏳ Guardando ficha...";
+
       const nombreOperadora = document.getElementById('operadora').value;
-      localStorage.setItem('nombre_operadora', nombreOperadora);
+      if (nombreOperadora) {
+        localStorage.setItem('nombre_operadora', nombreOperadora);
+      }
+
+      const latVal = parseFloat(document.getElementById('lat').value);
+      const lngVal = parseFloat(document.getElementById('lng').value);
 
       const payload = {
         operadora: nombreOperadora,
@@ -163,23 +196,49 @@ function obtenerGPS() {
         otras_observaciones: document.getElementById('otras_observaciones').value,
         es_electrodependiente: document.getElementById('es_electrodependiente').checked,
         criticidad: document.getElementById('criticidad').value,
-        lat: parseFloat(document.getElementById('lat').value),
-        lng: parseFloat(document.getElementById('lng').value)
+        lat: Number.isFinite(latVal) ? latVal : defaultLat,
+        lng: Number.isFinite(lngVal) ? lngVal : defaultLng
       };
 
-      const res = await fetch('/api/personas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 20000);
 
-      if (res.ok) {
-        alert('✅ Ficha guardada correctamente en el sistema.');
-        document.getElementById('formRiesgo').reset();
-        document.getElementById('operadora').value = nombreOperadora; // Mantiene el nombre de la operadora cargado
-      } else {
-        const err = await res.json();
-        alert('❌ Error: ' + err.error);
+      try {
+        const res = await fetch('/api/personas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        clearTimeout(timer);
+
+        if (res.ok) {
+          alert('✅ Ficha guardada correctamente en el sistema.');
+          document.getElementById('formRiesgo').reset();
+          if (nombreOperadora) {
+            document.getElementById('operadora').value = nombreOperadora;
+          }
+          marker.setLatLng([defaultLat, defaultLng]);
+          map.setView([defaultLat, defaultLng], 13);
+          actualizarCoords(defaultLat, defaultLng);
+        } else {
+          let errMsg = 'Error al guardar';
+          try {
+            const err = await res.json();
+            errMsg = err.error || errMsg;
+          } catch (_) {}
+          alert('❌ Error: ' + errMsg);
+        }
+      } catch (error) {
+        clearTimeout(timer);
+        if (error.name === 'AbortError') {
+          alert('❌ La conexión tardó demasiado. Revisa la señal del celular e intenta nuevamente.');
+        } else {
+          alert('❌ Error de red al guardar: ' + error.message);
+        }
+      } finally {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = textoBtn;
       }
     });
   </script>

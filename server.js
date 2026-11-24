@@ -8,6 +8,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+
+
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
 // Registrar o actualizar persona por DNI
@@ -28,6 +30,11 @@ app.post('/api/personas', async (req, res) => {
     lat,
     lng
   } = req.body;
+
+  const latNum = Number(lat);
+  const lngNum = Number(lng);
+  const safeLat = Number.isFinite(latNum) ? latNum : -31.6333;
+  const safeLng = Number.isFinite(lngNum) ? lngNum : -60.7000;
 
   const { data, error } = await supabase
     .from('personas_riesgo')
