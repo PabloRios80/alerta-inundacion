@@ -83,6 +83,28 @@ function contarFrecuencias(registros, campo) {
     .sort((a, b) => b.cantidad - a.cantidad);
 }
 
+function estimarEdadPorDni(dniRaw) {
+  if (!dniRaw) return null;
+  const num = Number(String(dniRaw).replace(/\D/g, ''));
+  if (!Number.isFinite(num) || num < 1000000 || num > 99999999) return null;
+
+  // Estimación orientativa por rango de numeración de DNI en Argentina
+  if (num >= 56000000) return 6;   // ~0 a 10
+  if (num >= 46000000) return 15;  // ~10 a 20
+  if (num >= 32000000) return 30;  // ~20 a 40
+  if (num >= 20000000) return 50;  // ~40 a 60
+  return 70;                       // ~Más de 60
+}
+
+function clasificarFranjaEtaria(edadEstimada) {
+  if (edadEstimada === null || edadEstimada === undefined) return 'Sin dato';
+  if (edadEstimada < 10) return '0 a 10';
+  if (edadEstimada < 20) return '10 a 20';
+  if (edadEstimada < 40) return '20 a 40';
+  if (edadEstimada <= 60) return '40 a 60';
+  return 'Más de 60';
+}
+
 app.get('/api/estadisticas', async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -97,6 +119,36 @@ app.get('/api/estadisticas', async (req, res) => {
     const totalPersonas = filas.length;
     const totalElectrodependientes = filas.filter(f => Boolean(f.es_electrodependiente)).length;
 
+    const ordenFranjas = ['0 a 10', '10 a 20', '20 a 40', '40 a 60', 'Más de 60', 'Sin dato'];
+    const conteoFranjas = {
+      '0 a 10': 0,
+      '10 a 20': 0,
+      '20 a 40': 0,
+      '40 a 60': 0,
+      'Más de 60': 0,
+      'Sin dato': 0
+    };
+
+    const edadesEstimadas = [];
+
+    for (const f of filas) {
+      const edadEst = estimarEdadPorDni(f.dni);
+      if (edadEst !== null) {
+        edadesEstimadas.push(edadEst);
+      }
+      const franja = clasificarFranjaEtaria(edadEst);
+      conteoFranjas[franja] = (conteoFranjas[franja] || 0) + 1;
+    }
+
+    const promedioEdadEstimado = edadesEstimadas.length > 0
+      ? Number((edadesEstimadas.reduce((a, b) => a + b, 0) / edadesEstimadas.length).toFixed(1))
+      : null;
+
+    const franjasEtarias = ordenFranjas.map(rango => ({
+      rango,
+      cantidad: conteoFranjas[rango]
+    }));
+
     const porCriticidad = { alta: 0, media: 0, baja: 0 };
     for (const f of filas) {
       const c = String(f.criticidad || 'media').toLowerCase().trim();
@@ -110,7 +162,8 @@ app.get('/api/estadisticas', async (req, res) => {
     res.json({
       totalPersonas,
       totalElectrodependientes,
-      promedioEdad: null,
+      promedioEdadEstimado,
+      franjasEtarias,
       porCriticidad,
       topPatologias,
       topMedicamentos,

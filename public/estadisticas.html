@@ -156,6 +156,16 @@
       </div>
 
       <div class="panel">
+     <h2>👥 Franjas etarias (estimadas por DNI)</h2>
+     <ul class="ranking-list" id="listaFranjas">
+       <li>Cargando...</li>
+     </ul>
+     <p style="font-size: 0.78rem; color: #6c757d; margin-top: 10px; margin-bottom: 0;">
+       * Estimación orientativa según numeración del DNI, no reemplaza fecha de nacimiento ni edad real.
+     </p>
+   </div>
+
+      <div class="panel">
         <h2>👤 Cargas por operador/a</h2>
         <ul class="ranking-list" id="listaOperadoras">
           <li>Cargando...</li>
@@ -191,11 +201,17 @@
 
         document.getElementById('totalPersonas').textContent = data.totalPersonas ?? 0;
         document.getElementById('promedioEdad').textContent =
-          data.promedioEdad !== null && data.promedioEdad !== undefined
-            ? `${data.promedioEdad} años`
-            : 'Sin dato';
+            data.promedioEdadEstimado !== null && data.promedioEdadEstimado !== undefined
+                ? `~${data.promedioEdadEstimado} años`
+                : 'Sin dato';
         document.getElementById('totalElectro').textContent = data.totalElectrodependientes ?? 0;
 
+
+        const franjasFormateadas = (data.franjasEtarias || []).map(item => ({
+  nombre: item.rango,
+  cantidad: item.cantidad
+}));
+renderRanking('listaFranjas', franjasFormateadas, 'Sin datos de DNI.');
         const c = data.porCriticidad || { alta: 0, media: 0, baja: 0 };
         document.getElementById('criticidadResumen').textContent =
           `${c.alta} / ${c.media} / ${c.baja}`;
