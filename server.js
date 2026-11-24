@@ -60,6 +60,78 @@ app.post('/api/personas', async (req, res) => {
   res.json({ mensaje: 'Registro guardado correctamente', data });
 });
 
+function contarFrecuencias(registros, campo) {
+  const conteo = {};
+
+  for (const fila of registros) {
+    const raw = fila[campo];
+    if (!raw || typeof raw !== 'string') continue;
+
+    // Separa por coma, punto y coma, barra o salto de línea
+    const partes = raw
+      .split(/[,;\/\n]+/)
+      .map(item => item.trim().toLowerCase())
+      .filter(item => item.length > 1 && item !== 'no' && item !== 'ninguna' && item !== 'ninguno');
+
+    for (const parte of partes) {
+      conteo[parte] = (conteo[parte] || 0) + 1;
+    }
+  }
+
+  return Object.entries(conteo)
+    .map(([nombre, cantidad]) => ({ nombre, cantidad }))
+    .sort((a, b) => b.cantidad - a.cantidad);
+}
+
+app.get('/api/estadisticas', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('personas_riesgo')
+      .select('edad, enfermedad_discapacidad, medicacion, es_electrodependiente, criticidad, estado, operadora');
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+
+    const filas = data || [];
+    const totalPersonas = filas.length;
+    const totalElectrodependientes = filas.filter(f => Boolean(f.es_electrodependiente)).length;
+
+    // Promedio de edad (solo sobre registros con edad numérica válida)
+    const edadesValidas = filas
+      .map(f => Number(f.edad))
+      .filter(n => Number.isFinite(n) && n > 0 && n < 125);
+
+    const promedioEdad = edadesValidas.length > 0
+      ? Number((edadesValidas.reduce((acc, n) => acc + n, 0) / edadesValidas.length).toFixed(1))
+      : null;
+
+    // Conteo por criticidad
+    const porCriticidad = { alta: 0, media: 0, baja: 0 };
+    for (const f of filas) {
+      const c = (f.criticidad || 'media').toLowerCase();
+      if (porCriticidad[c] !== undefined) porCriticidad[c]++;
+    }
+
+    // Top patologías y medicamentos
+    const topPatologias = contarFrecuencias(filas, 'enfermedad_discapacidad').slice(0, 10);
+    const topMedicamentos = contarFrecuencias(filas, 'medicacion').slice(0, 10);
+    const porOperadora = contarFrecuencias(filas, 'operadora').slice(0, 10);
+
+    res.json({
+      totalPersonas,
+      totalElectrodependientes,
+      promedioEdad,
+      cantidadConEdad: edadesValidas.length,
+      porCriticidad,
+      topPatologias,
+      topMedicamentos,
+      porOperadora
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // Obtener listado completo ordenado por criticidad y apellido
 app.get('/api/personas', async (req, res) => {
   const { data, error } = await supabase

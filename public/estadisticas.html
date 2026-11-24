@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estadísticas - Salud Colastiné Norte</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #eef2f7;
+      color: #212529;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      text-decoration: none;
+      background: #0d47a1;
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      font-size: 0.92rem;
+    }
+    .btn-print {
+      background: #495057;
+    }
+    h1 {
+      margin: 0 0 18px 0;
+      color: #0d47a1;
+      font-size: 1.6rem;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .kpi-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      border-top: 4px solid #0d47a1;
+    }
+    .kpi-label {
+      font-size: 0.85rem;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    .kpi-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #0d47a1;
+    }
+    .grid-panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .panel {
+      background: #fff;
+      border-radius: 10px;
+      padding: 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    }
+    .panel h2 {
+      margin: 0 0 12px 0;
+      font-size: 1.1rem;
+      color: #1a252f;
+    }
+    .ranking-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .ranking-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f2f5;
+      font-size: 0.95rem;
+    }
+    .badge {
+      background: #e8f0fe;
+      color: #0d47a1;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+    }
+    @media print {
+      .top-bar, .btn { display: none !important; }
+      body { background: #fff; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-bar">
+      <div>
+        <a href="index.html" class="btn">← Inicio</a>
+        <a href="mapa.html" class="btn">🗺️ Mapa</a>
+      </div>
+      <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir / PDF</button>
+    </div>
+
+    <h1>📊 Estadísticas del Relevamiento — Colastiné Norte</h1>
+
+    <div class="kpis">
+      <div class="kpi-card">
+        <div class="kpi-label">Total relevados</div>
+        <div class="kpi-value" id="totalPersonas">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Promedio de edad</div>
+        <div class="kpi-value" id="promedioEdad">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Electrodependientes</div>
+        <div class="kpi-value" id="totalElectro">-</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Criticidad Alta / Media / Baja</div>
+        <div class="kpi-value" id="criticidadResumen" style="font-size: 1.25rem; margin-top: 6px;">-</div>
+      </div>
+    </div>
+
+    <div class="grid-panels">
+      <div class="panel">
+        <h2>🩺 Principales patologías / condiciones</h2>
+        <ul class="ranking-list" id="listaPatologias">
+          <li>Cargando...</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>💊 Medicación más reportada</h2>
+        <ul class="ranking-list" id="listaMedicamentos">
+          <li>Cargando...</li>
+        </ul>
+      </div>
+
+      <div class="panel">
+        <h2>👤 Cargas por operador/a</h2>
+        <ul class="ranking-list" id="listaOperadoras">
+          <li>Cargando...</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function renderRanking(elementId, items, emptyText) {
+      const ul = document.getElementById(elementId);
+      if (!items || items.length === 0) {
+        ul.innerHTML = `<li style="color:#6c757d;">${emptyText}</li>`;
+        return;
+      }
+      ul.innerHTML = items.map(item => `
+        <li class="ranking-item">
+          <span>${item.nombre}</span>
+          <span class="badge">${item.cantidad}</span>
+        </li>
+      `).join('');
+    }
+
+    async function cargarEstadisticas() {
+      try {
+        const res = await fetch('/api/estadisticas');
+        const data = await res.json();
+
+        document.getElementById('totalPersonas').textContent = data.totalPersonas ?? 0;
+        document.getElementById('promedioEdad').textContent =
+          data.promedioEdad !== null && data.promedioEdad !== undefined
+            ? `${data.promedioEdad} años`
+            : 'Sin dato';
+        document.getElementById('totalElectro').textContent = data.totalElectrodependientes ?? 0;
+
+        const c = data.porCriticidad || { alta: 0, media: 0, baja: 0 };
+        document.getElementById('criticidadResumen').textContent =
+          `${c.alta} / ${c.media} / ${c.baja}`;
+
+        renderRanking('listaPatologias', data.topPatologias, 'Sin patologías cargadas aún.');
+        renderRanking('listaMedicamentos', data.topMedicamentos, 'Sin medicación cargada aún.');
+        renderRanking('listaOperadoras', data.porOperadora, 'Sin registros por operadora.');
+      } catch (err) {
+        alert('Error al cargar estadísticas: ' + err.message);
+      }
+    }
+
+    cargarEstadisticas();
+  </script>
+</body>
+</html>
