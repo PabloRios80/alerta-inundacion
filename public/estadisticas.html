@@ -118,6 +118,9 @@
       </div>
       <button class="btn btn-print" onclick="window.print()">🖨️ Imprimir / PDF</button>
     </div>
+    <button class="btn" onclick="exportarListadoExcel()" style="background:#1b5e20;">
+        📥 Exportar Excel (Nombre, Apellido, DNI)
+    </button>
 
     <h1>📊 Estadísticas del Relevamiento — Colastiné Norte</h1>
 
@@ -226,5 +229,54 @@ renderRanking('listaFranjas', franjasFormateadas, 'Sin datos de DNI.');
 
     cargarEstadisticas();
   </script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+  async function exportarListadoExcel() {
+    try {
+      const res = await fetch('/api/personas');
+      if (!res.ok) {
+        throw new Error(`Error ${res.status} al obtener los registros`);
+      }
+
+      const data = await res.json();
+      const personas = Array.isArray(data) ? data : (data.personas || []);
+
+      if (personas.length === 0) {
+        alert('No hay casos cargados para exportar.');
+        return;
+      }
+
+      // Ordenar alfabéticamente por Apellido y luego Nombre
+      const ordenadas = [...personas].sort((a, b) => {
+        const cmpApellido = String(a.apellido || '').localeCompare(String(b.apellido || ''), 'es');
+        if (cmpApellido !== 0) return cmpApellido;
+        return String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es');
+      });
+
+      const filasExcel = ordenadas.map((p) => ({
+        Nombre: p.nombre || '',
+        Apellido: p.apellido || '',
+        DNI: p.dni ? String(p.dni).trim() : ''
+      }));
+
+      const hoja = XLSX.utils.json_to_sheet(filasExcel);
+
+      // Ajustar ancho de columnas para que se lea cómodo
+      hoja['!cols'] = [
+        { wch: 24 }, // Nombre
+        { wch: 24 }, // Apellido
+        { wch: 16 }  // DNI
+      ];
+
+      const libro = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(libro, hoja, 'Censados');
+
+      const hoy = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(libro, `listado_censados_colastine_${hoy}.xlsx`);
+    } catch (err) {
+      alert('❌ No se pudo generar el Excel: ' + err.message);
+    }
+  }
+</script>
 </body>
 </html>
