@@ -105,6 +105,32 @@ function clasificarFranjaEtaria(edadEstimada) {
   return 'Más de 60';
 }
 
+app.get('/api/personas/:dni', async (req, res) => {
+  try {
+    const dniLimpio = String(req.params.dni || '').replace(/\D/g, '');
+    if (!dniLimpio) {
+      return res.status(400).json({ error: 'DNI inválido' });
+    }
+
+    const { data, error } = await supabase
+      .from('personas_riesgo')
+      .select('*')
+      .eq('dni', dniLimpio)
+      .maybeSingle();
+
+    if (error) {
+      return res.status(500).json({ error: error.message });
+    }
+    if (!data) {
+      return res.status(404).json({ error: 'Ficha no encontrada' });
+    }
+
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/estadisticas', async (req, res) => {
   try {
     const { data, error } = await supabase

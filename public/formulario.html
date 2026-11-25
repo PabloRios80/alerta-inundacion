@@ -130,9 +130,11 @@
       }
 
       const btnGps = document.querySelector('.btn-gps');
-      const textoOriginal = btnGps.textContent;
-      btnGps.disabled = true;
-      btnGps.textContent = "⏳ Buscando ubicación GPS...";
+      const textoOriginal = btnGps ? btnGps.textContent : '';
+      if (btnGps) {
+        btnGps.disabled = true;
+        btnGps.textContent = "⏳ Buscando ubicación GPS...";
+      }
 
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -140,12 +142,16 @@
           map.setView([latitude, longitude], 17);
           marker.setLatLng([latitude, longitude]);
           actualizarCoords(latitude, longitude);
-          btnGps.disabled = false;
-          btnGps.textContent = textoOriginal;
+          if (btnGps) {
+            btnGps.disabled = false;
+            btnGps.textContent = textoOriginal;
+          }
         },
         (err) => {
-          btnGps.disabled = false;
-          btnGps.textContent = textoOriginal;
+          if (btnGps) {
+            btnGps.disabled = false;
+            btnGps.textContent = textoOriginal;
+          }
           alert("No se pudo obtener el GPS (" + err.message + "). Marca el punto tocando el mapa.");
         },
         {
@@ -156,24 +162,99 @@
       );
     }
 
-    document.getElementById('es_electrodependiente').addEventListener('change', (e) => {
-      if (e.target.checked) {
-        document.getElementById('criticidad').value = 'alta';
-      }
-    });
+    const electroCheck = document.getElementById('es_electrodependiente');
+    if (electroCheck) {
+      electroCheck.addEventListener('change', (e) => {
+        if (e.target.checked && document.getElementById('criticidad')) {
+          document.getElementById('criticidad').value = 'alta';
+        }
+      });
+    }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const opGuardada = localStorage.getItem('nombre_operadora');
-      if (opGuardada) document.getElementById('operadora').value = opGuardada;
+      if (opGuardada && document.getElementById('operadora')) {
+        document.getElementById('operadora').value = opGuardada;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const dniEditar = params.get('dni');
+
+      if (!dniEditar) return;
+
+      try {
+        const res = await fetch(`/api/personas/${encodeURIComponent(dniEditar)}`);
+        if (!res.ok) {
+          alert('No se pudo encontrar o cargar la ficha del DNI ' + dniEditar);
+          return;
+        }
+
+        const p = await res.json();
+
+        if (p.operadora && document.getElementById('operadora')) {
+          document.getElementById('operadora').value = p.operadora;
+        }
+        if (document.getElementById('apellido')) {
+          document.getElementById('apellido').value = p.apellido || '';
+        }
+        if (document.getElementById('nombre')) {
+          document.getElementById('nombre').value = p.nombre || '';
+        }
+        if (document.getElementById('dni')) {
+          document.getElementById('dni').value = p.dni || dniEditar;
+          document.getElementById('dni').readOnly = true;
+        }
+        if (document.getElementById('telefono')) {
+          document.getElementById('telefono').value = p.telefono || '';
+        }
+        if (document.getElementById('direccion_referencia')) {
+          document.getElementById('direccion_referencia').value = p.direccion_referencia || '';
+        }
+        if (document.getElementById('enfermedad_discapacidad')) {
+          document.getElementById('enfermedad_discapacidad').value = p.enfermedad_discapacidad || '';
+        }
+        if (document.getElementById('medico_centro_salud')) {
+          document.getElementById('medico_centro_salud').value = p.medico_centro_salud || '';
+        }
+        if (document.getElementById('medicacion')) {
+          document.getElementById('medicacion').value = p.medicacion || '';
+        }
+        if (document.getElementById('otras_observaciones')) {
+          document.getElementById('otras_observaciones').value = p.otras_observaciones || '';
+        }
+        if (document.getElementById('es_electrodependiente')) {
+          document.getElementById('es_electrodependiente').checked = Boolean(p.es_electrodependiente);
+        }
+        if (p.criticidad && document.getElementById('criticidad')) {
+          document.getElementById('criticidad').value = p.criticidad;
+        }
+
+        const latGuardada = Number(p.lat);
+        const lngGuardada = Number(p.lng);
+        if (Number.isFinite(latGuardada) && Number.isFinite(lngGuardada)) {
+          map.setView([latGuardada, lngGuardada], 16);
+          marker.setLatLng([latGuardada, lngGuardada]);
+          actualizarCoords(latGuardada, lngGuardada);
+        }
+
+        const btnSubmit = document.querySelector('.btn-submit');
+        if (btnSubmit) {
+          btnSubmit.textContent = '💾 Guardar Cambios de la Ficha';
+        }
+      } catch (err) {
+        alert('Error al cargar los datos para editar: ' + err.message);
+      }
     });
 
     document.getElementById('formRiesgo').addEventListener('submit', async (e) => {
       e.preventDefault();
 
       const btnSubmit = document.querySelector('.btn-submit');
-      const textoBtn = btnSubmit.textContent;
-      btnSubmit.disabled = true;
-      btnSubmit.textContent = "⏳ Guardando ficha...";
+      const textoBtn = btnSubmit ? btnSubmit.textContent : 'Guardar';
+      if (btnSubmit) {
+        btnSubmit.disabled = true;
+        btnSubmit.textContent = "⏳ Guardando ficha...";
+      }
 
       const nombreOperadora = document.getElementById('operadora').value;
       if (nombreOperadora) {
@@ -213,6 +294,13 @@
         clearTimeout(timer);
 
         if (res.ok) {
+          const esEdicion = Boolean(new URLSearchParams(window.location.search).get('dni'));
+          if (esEdicion) {
+            alert('✅ Cambios guardados correctamente.');
+            window.location.href = 'mapa.html';
+            return;
+          }
+
           alert('✅ Ficha guardada correctamente en el sistema.');
           document.getElementById('formRiesgo').reset();
           if (nombreOperadora) {
@@ -237,8 +325,10 @@
           alert('❌ Error de red al guardar: ' + error.message);
         }
       } finally {
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = textoBtn;
+        if (btnSubmit) {
+          btnSubmit.disabled = false;
+          btnSubmit.textContent = textoBtn;
+        }
       }
     });
   </script>
