@@ -1,168 +1,453 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Centro de Operaciones - Mapa Sanitario</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mapa Operativo — Salud Colastiné Norte</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body { margin: 0; font-family: system-ui, sans-serif; display: flex; height: 100vh; }
-    #sidebar { width: 400px; background: #fff; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-    .header-panel { padding: 15px; background: #004a99; color: white; }
-    .header-panel h3 { margin: 0 0 10px 0; }
-    .controles { padding: 10px 15px; background: #f8f9fa; border-bottom: 1px solid #ddd; }
-    .controles input, .controles select { width: 100%; padding: 8px; margin-bottom: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-    #lista { flex: 1; overflow-y: auto; padding: 12px; }
-    #map { flex: 1; height: 100%; }
-    .persona-card { border: 1px solid #e0e0e0; border-left: 6px solid #ccc; padding: 12px; margin-bottom: 10px; border-radius: 6px; background: #fff; cursor: pointer; transition: 0.15s; }
-    .persona-card:hover { background: #f4f8ff; }
-    .alta { border-left-color: #dc3545; }
-    .media { border-left-color: #ffc107; }
-    .baja { border-left-color: #17a2b8; }
-    .evacuado { border-left-color: #28a745; opacity: 0.65; }
-    .badge-electro { background: #dc3545; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
-    .dato-item { font-size: 0.85rem; margin-top: 4px; color: #333; }
-    .acciones { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
-    .btn-wa { background: #25D366; color: white; text-decoration: none; padding: 6px 10px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
-    .btn-estado { background: #495057; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-    .btn-evacuado { background: #198754; }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #eef2f7;
+      color: #1f2937;
+    }
+    header {
+      background: #0d47a1;
+      color: #ffffff;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .nav-links {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .nav-btn {
+      text-decoration: none;
+      background: rgba(255, 255, 255, 0.16);
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.26);
+    }
+    .filtros-bar {
+      background: #ffffff;
+      padding: 12px 18px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      border-bottom: 1px solid #d1d5db;
+    }
+    .filtros-bar input,
+    .filtros-bar select {
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      background: #ffffff;
+      color: #1f2937;
+    }
+    .filtros-bar input {
+      flex: 1;
+      min-width: 200px;
+    }
+    .chk-filtro {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .contador-badge {
+      margin-left: auto;
+      background: #e0e7ff;
+      color: #1e3a8a;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      height: calc(100vh - 116px);
+      min-height: 520px;
+    }
+    #map {
+      width: 100%;
+      height: 100%;
+    }
+    .panel-lateral {
+      background: #f8fafc;
+      overflow-y: auto;
+      padding: 14px;
+      border-left: 1px solid #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .tarjeta {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 14px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+      border-left: 5px solid #0284c7;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .tarjeta:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .tarjeta.crit-alta {
+      border-left-color: #dc2626;
+    }
+    .tarjeta.crit-media {
+      border-left-color: #f59e0b;
+    }
+    .tarjeta.crit-baja {
+      border-left-color: #16a34a;
+    }
+    .tarjeta-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .tarjeta-nombre {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #111827;
+    }
+    .tarjeta-dni {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #4b5563;
+      background: #f3f4f6;
+      padding: 2px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .tags {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .tag {
+      font-size: 0.76rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .tag-alta {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+    .tag-media {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    .tag-baja {
+      background: #dcfce7;
+      color: #166534;
+    }
+    .tag-electro {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    .dato-linea {
+      margin-top: 6px;
+      font-size: 0.88rem;
+      color: #374151;
+      line-height: 1.35;
+    }
+    .tarjeta-acciones {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #f1f5f9;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .btn-editar {
+      display: inline-block;
+      background: #ffc107;
+      color: #212529;
+      text-decoration: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 0.84rem;
+    }
+    .btn-editar:hover {
+      background: #e0a800;
+    }
+    .estado-vacio {
+      text-align: center;
+      padding: 30px 16px;
+      color: #6b7280;
+      font-size: 0.95rem;
+    }
+    @media (max-width: 820px) {
+      .layout {
+        grid-template-columns: 1fr;
+        height: auto;
+      }
+      #map {
+        height: 340px;
+      }
+      .panel-lateral {
+        max-height: none;
+        border-left: none;
+        border-top: 1px solid #cbd5e1;
+      }
+      .contador-badge {
+        margin-left: 0;
+      }
+    }
   </style>
 </head>
 <body>
-  <div id="sidebar">
-    <div class="header-panel">
-      <h3>Mapa de Riesgo (<span id="contador">0</span>)</h3>
-      <small>Panel de seguimiento sanitario y evacuación</small>
+  <header>
+    <h1>🗺️ Mapa Operativo — Colastiné Norte</h1>
+    <div class="nav-links">
+      <a href="index.html" class="nav-btn">← Inicio</a>
+      <a href="formulario.html" class="nav-btn">📝 Nueva Ficha</a>
+      <a href="estadisticas.html" class="nav-btn">📊 Estadísticas</a>
     </div>
-    <div class="controles">
-      <input type="text" id="buscador" placeholder="Buscar por apellido, DNI, medicación o CAPS..." onkeyup="renderizarDatos()">
-      <select id="filtro" onchange="renderizarDatos()">
-        <option value="todos">Todos los registros</option>
-        <option value="electro">⚡ Solo Electrodependientes</option>
-        <option value="alta">🔴 Prioridad ALTA (Sin evacuar)</option>
-        <option value="pendientes">⏳ Todos los pendientes de evacuar</option>
-        <option value="evacuados">✅ Ya Evacuados</option>
-      </select>
-    </div>
-    <div id="lista"></div>
+  </header>
+
+  <div class="filtros-bar">
+    <input
+      type="text"
+      id="filtroTexto"
+      placeholder="Buscar por nombre, apellido, DNI, dirección o patología..."
+    />
+    <select id="filtroCriticidad">
+      <option value="">Todas las criticidades</option>
+      <option value="alta">Criticidad Alta</option>
+      <option value="media">Criticidad Media</option>
+      <option value="baja">Criticidad Baja</option>
+    </select>
+    <label class="chk-filtro">
+      <input type="checkbox" id="filtroElectro" />
+      ⚡ Solo electrodependientes
+    </label>
+    <span class="contador-badge" id="contadorCasos">0 casos</span>
   </div>
-  <div id="map"></div>
+
+  <div class="layout">
+    <div id="map"></div>
+    <aside class="panel-lateral" id="listaTarjetas">
+      <div class="estado-vacio">Cargando fichas relevadas...</div>
+    </aside>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    const map = L.map('map').setView([-31.6333, -60.7000], 13);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    const centroColastine = [-31.6333, -60.7000];
+    const map = L.map('map').setView(centroColastine, 13);
 
-    let personasData = [];
-    let markersLayer = L.layerGroup().addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
 
-    async function cargarDatos() {
-      const res = await fetch('/api/personas');
-      personasData = await res.json();
-      renderizarDatos();
+    let todasLasPersonas = [];
+    let marcadoresLayer = L.layerGroup().addTo(map);
+
+    function escaparHtml(valor) {
+      if (valor === null || valor === undefined) return '';
+      return String(valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
     }
 
-    function obtenerColor(p) {
-      if (p.estado === 'evacuado') return '#28a745';
-      if (p.es_electrodependiente || p.criticidad === 'alta') return '#dc3545';
-      if (p.criticidad === 'media') return '#ffc107';
-      return '#17a2b8';
+    function normalizarCriticidad(crit) {
+      const c = String(crit || 'media').toLowerCase().trim();
+      return ['alta', 'media', 'baja'].includes(c) ? c : 'media';
     }
 
-    function renderizarDatos() {
-      const filtro = document.getElementById('filtro').value;
-      const texto = document.getElementById('buscador').value.toLowerCase();
-      const lista = document.getElementById('lista');
-      lista.innerHTML = '';
-      markersLayer.clearLayers();
+    function filtrarPersonas() {
+      const texto = document.getElementById('filtroTexto').value.toLowerCase().trim();
+      const criticidad = document.getElementById('filtroCriticidad').value;
+      const soloElectro = document.getElementById('filtroElectro').checked;
 
-      const filtrados = personasData.filter(p => {
-        const coincideTexto = 
-          `${p.apellido} ${p.nombre}`.toLowerCase().includes(texto) ||
-          (p.dni && p.dni.includes(texto)) ||
-          (p.medicacion && p.medicacion.toLowerCase().includes(texto)) ||
-          (p.medico_centro_salud && p.medico_centro_salud.toLowerCase().includes(texto));
+      return todasLasPersonas.filter((p) => {
+        if (soloElectro && !Boolean(p.es_electrodependiente)) {
+          return false;
+        }
+        if (criticidad && normalizarCriticidad(p.criticidad) !== criticidad) {
+          return false;
+        }
+        if (texto) {
+          const combinado = [
+            p.apellido,
+            p.nombre,
+            p.dni,
+            p.direccion_referencia,
+            p.enfermedad_discapacidad,
+            p.medicacion,
+            p.medico_centro_salud,
+            p.operadora
+          ]
+            .filter(Boolean)
+            .join(' ')
+            .toLowerCase();
 
-        if (!coincideTexto) return false;
-        if (filtro === 'electro') return p.es_electrodependiente;
-        if (filtro === 'alta') return (p.criticidad === 'alta' || p.es_electrodependiente) && p.estado !== 'evacuado';
-        if (filtro === 'pendientes') return p.estado !== 'evacuado';
-        if (filtro === 'evacuados') return p.estado === 'evacuado';
+          if (!combinado.includes(texto)) {
+            return false;
+          }
+        }
         return true;
       });
+    }
 
-      document.getElementById('contador').innerText = filtrados.length;
+    function renderizarTodo() {
+      const filtradas = filtrarPersonas();
+      const contenedor = document.getElementById('listaTarjetas');
+      const contador = document.getElementById('contadorCasos');
 
-      filtrados.forEach(p => {
-        const msg = encodeURIComponent(
-          `Hola ${p.nombre} ${p.apellido}, nos comunicamos del Equipo de Salud y Emergencias por alerta hídrica. Tenemos registrado su domicilio en ${p.direccion_referencia}. ¿Cómo se encuentran y necesitan asistencia o traslado?`
-        );
-        const linkWa = `https://wa.me/${p.telefono}?text=${msg}`;
+      contador.textContent = `${filtradas.length} ${filtradas.length === 1 ? 'caso' : 'casos'}`;
+      marcadoresLayer.clearLayers();
 
-        // Pin en el mapa
-        const marker = L.circleMarker([p.lat, p.lng], {
-          radius: p.es_electrodependiente ? 11 : 9,
-          fillColor: obtenerColor(p),
-          color: '#000',
-          weight: p.es_electrodependiente ? 2.5 : 1,
-          fillOpacity: 0.9
-        }).bindPopup(`
-          <div style="min-width:220px;">
-            <strong style="font-size:1.05rem;">${p.apellido}, ${p.nombre}</strong><br>
-            ${p.es_electrodependiente ? '<span class="badge-electro">⚡ ELECTRODEPENDIENTE</span><br>' : ''}
-            <b>DNI:</b> ${p.dni} | <b>Tel:</b> ${p.telefono}<br>
-            <b>Ref:</b> ${p.direccion_referencia}<br>
-            <hr style="margin:6px 0;">
-            <b>Patología/Discapacidad:</b> ${p.enfermedad_discapacidad || '-'}<br>
-            <b>Medicación:</b> ${p.medicacion || '-'}<br>
-            <b>Médico/CAPS:</b> ${p.medico_centro_salud || '-'}<br>
-            <b>Observaciones:</b> ${p.otras_observaciones || '-'}<br>
-            <div style="margin-top:8px;">
-              <a href="${linkWa}" target="_blank" class="btn-wa">📲 Contactar por WhatsApp</a>
+      if (filtradas.length === 0) {
+        contenedor.innerHTML = '<div class="estado-vacio">No hay fichas que coincidan con el filtro.</div>';
+        return;
+      }
+
+      contenedor.innerHTML = '';
+
+      filtradas.forEach((p) => {
+        const crit = normalizarCriticidad(p.criticidad);
+        const esElectro = Boolean(p.es_electrodependiente);
+        const nombreCompleto = `${p.apellido || ''} ${p.nombre || ''}`.trim() || 'Sin nombre';
+        const dniSeguro = p.dni ? String(p.dni).trim() : '';
+
+        const lat = Number(p.lat);
+        const lng = Number(p.lng);
+        const tieneCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+        let marker = null;
+        if (tieneCoords) {
+          marker = L.marker([lat, lng]).addTo(marcadoresLayer);
+          marker.bindPopup(`
+            <div style="min-width: 190px;">
+              <strong>${escaparHtml(nombreCompleto)}</strong><br />
+              <span>DNI: ${escaparHtml(dniSeguro || '-')}</span><br />
+              ${p.direccion_referencia ? `<span>📍 ${escaparHtml(p.direccion_referencia)}</span><br />` : ''}
+              ${p.enfermedad_discapacidad ? `<span>🩺 ${escaparHtml(p.enfermedad_discapacidad)}</span><br />` : ''}
+              ${p.medicacion ? `<span>💊 ${escaparHtml(p.medicacion)}</span><br />` : ''}
+              ${
+                dniSeguro
+                  ? `<div style="margin-top: 8px;">
+                       <a href="formulario.html?dni=${encodeURIComponent(dniSeguro)}"
+                          style="display:inline-block; background:#ffc107; color:#212529; text-decoration:none; padding:5px 10px; border-radius:6px; font-weight:700; font-size:0.82rem;">
+                         ✏️ Editar ficha
+                       </a>
+                     </div>`
+                  : ''
+              }
             </div>
-          </div>
-        `);
-        markersLayer.addLayer(marker);
+          `);
+        }
 
-        // Tarjeta lateral
-        const card = document.createElement('div');
-        card.className = `persona-card ${p.estado === 'evacuado' ? 'evacuado' : p.criticidad}`;
-        card.innerHTML = `
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-            <strong>${p.apellido}, ${p.nombre}</strong>
-            ${p.es_electrodependiente ? '<span class="badge-electro">⚡ ELECTRO</span>' : ''}
+        const tarjeta = document.createElement('div');
+        tarjeta.className = `tarjeta crit-${crit}`;
+
+        tarjeta.innerHTML = `
+          <div class="tarjeta-header">
+            <div class="tarjeta-nombre">${escaparHtml(nombreCompleto)}</div>
+            <div class="tarjeta-dni">DNI ${escaparHtml(dniSeguro || '-')}</div>
           </div>
-          <div class="dato-item">📍 <b>Ref:</b> ${p.direccion_referencia}</div>
-          <div class="dato-item">🩺 <b>Dx:</b> ${p.enfermedad_discapacidad || 'Sin especificar'}</div>
-          <div class="dato-item">💊 <b>Med:</b> ${p.medicacion || 'Ninguna'}</div>
-          <div class="dato-item">🏥 <b>Ref. Salud:</b> ${p.medico_centro_salud || '-'}</div>
-          ${p.otras_observaciones ? `<div class="dato-item" style="color:#b02a37;">⚠️ <b>Obs:</b> ${p.otras_observaciones}</div>` : ''}
-          <div class="dato-item" style="color:#6c757d; font-size:0.8rem;">📝 <b>Cargado por:</b> ${p.operadora || 'Sin registro'}</div>
-          <div class="acciones">
-            <a href="${linkWa}" target="_blank" class="btn-wa">WhatsApp</a>
-            ${p.estado !== 'contactado' && p.estado !== 'evacuado' ? `<button class="btn-estado" onclick="cambiarEstado('${p.id}', 'contactado')">📞 Contactado</button>` : ''}
-            ${p.estado !== 'evacuado' ? `<button class="btn-estado btn-evacuado" onclick="cambiarEstado('${p.id}', 'evacuado')">✓ Evacuado</button>` : '<span style="color:#198754; font-weight:bold; font-size:0.85rem;">✅ Evacuado</span>'}
+
+          <div class="tags">
+            <span class="tag tag-${crit}">Criticidad ${crit}</span>
+            ${esElectro ? '<span class="tag tag-electro">⚡ Electrodependiente</span>' : ''}
+          </div>
+
+          ${p.direccion_referencia ? `<div class="dato-linea">📍 <strong>Dirección:</strong> ${escaparHtml(p.direccion_referencia)}</div>` : ''}
+          ${p.telefono ? `<div class="dato-linea">📞 <strong>Tel:</strong> ${escaparHtml(p.telefono)}</div>` : ''}
+          ${p.enfermedad_discapacidad ? `<div class="dato-linea">🩺 <strong>Condición:</strong> ${escaparHtml(p.enfermedad_discapacidad)}</div>` : ''}
+          ${p.medicacion ? `<div class="dato-linea">💊 <strong>Medicación:</strong> ${escaparHtml(p.medicacion)}</div>` : ''}
+          ${p.medico_centro_salud ? `<div class="dato-linea">🏥 <strong>Centro/Médico:</strong> ${escaparHtml(p.medico_centro_salud)}</div>` : ''}
+          ${p.otras_observaciones ? `<div class="dato-linea">📝 <strong>Obs:</strong> ${escaparHtml(p.otras_observaciones)}</div>` : ''}
+          ${p.operadora ? `<div class="dato-linea" style="color:#6b7280; font-size:0.82rem;">👤 Relevó: ${escaparHtml(p.operadora)}</div>` : ''}
+
+          <div class="tarjeta-acciones">
+            ${
+              dniSeguro
+                ? `<a href="formulario.html?dni=${encodeURIComponent(dniSeguro)}"
+                      class="btn-editar"
+                      onclick="event.stopPropagation();">
+                     ✏️ Editar
+                   </a>`
+                : '<span style="font-size:0.8rem; color:#9ca3af;">Sin DNI para editar</span>'
+            }
+            ${
+              !tieneCoords
+                ? '<span style="font-size:0.8rem; color:#b45309;">⚠️ Sin coordenadas GPS</span>'
+                : ''
+            }
           </div>
         `;
-        card.onclick = (e) => {
-          if (e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
-            map.setView([p.lat, p.lng], 17);
+
+        tarjeta.addEventListener('click', () => {
+          if (tieneCoords && marker) {
+            map.setView([lat, lng], 16);
             marker.openPopup();
           }
-        };
-        lista.appendChild(card);
+        });
+
+        contenedor.appendChild(tarjeta);
       });
     }
 
-    async function cambiarEstado(id, nuevoEstado) {
-      await fetch(`/api/personas/${id}/estado`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: nuevoEstado })
-      });
-      cargarDatos();
+    async function cargarPersonas() {
+      const contenedor = document.getElementById('listaTarjetas');
+      try {
+        const res = await fetch('/api/personas');
+        if (!res.ok) {
+          throw new Error(`Error ${res.status}`);
+        }
+        const data = await res.json();
+        todasLasPersonas = Array.isArray(data) ? data : (data.personas || []);
+        renderizarTodo();
+      } catch (err) {
+        contenedor.innerHTML = `<div class="estado-vacio">Error al cargar las fichas: ${escaparHtml(err.message)}</div>`;
+      }
     }
 
-    cargarDatos();
+    document.getElementById('filtroTexto').addEventListener('input', renderizarTodo);
+    document.getElementById('filtroCriticidad').addEventListener('change', renderizarTodo);
+    document.getElementById('filtroElectro').addEventListener('change', renderizarTodo);
+
+    cargarPersonas();
   </script>
 </body>
 </html>
